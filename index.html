@@ -16,61 +16,52 @@
   <h1>Balneário Rio Preto</h1>
   <div id="cardapio">Carregando cardápio…</div>
 
+  <!-- PapaParse pra CSV robusto -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script>
-    // URL CSV da sua planilha publicada
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vToQfgpKugc81XHL12EjkGLIBaYxnVapPlpsMxD0VD_K5Ymbk014e0hc7IuJ4raEDb6ehxVtsuZgpNd/pub?output=csv';
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vToQfgpKugc81XHL12EjkGLIBaYxnVapPlpsMxD0VD_K5Ymbk014e0hc7IuJ4raEDb6ehxVtsuZgpNd/pub?gid=1338668648&single=true&output=csv';
 
-    // Função simples pra parsear CSV em array de objetos
-    function parseCSV(text) {
-      const [headerLine, ...lines] = text.trim().split('\n');
-      const headers = headerLine.split(',').map(h => h.trim());
-      return lines.map(line => {
-        // suporta vírgulas dentro de aspas
-        const cols = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/);
-        const obj = {};
-        headers.forEach((h,i) => {
-          obj[h] = cols[i].replace(/^"|"$/g,'').trim();
+    function render(data) {
+      const container = document.getElementById('cardapio');
+      container.innerHTML = '';
+      // agrupa por Categoria
+      const grupos = {};
+      data.forEach(item => {
+        if (!item.Categoria || !item.Nome || !item.Preço) return;  // ignora linhas vazias
+        const cat = item.Categoria.trim();
+        grupos[cat] = grupos[cat] || [];
+        grupos[cat].push({
+          nome: item.Nome.trim(),
+          preco: item.Preço.trim().replace('.',',')  // garante vírgula
         });
-        return obj;
+      });
+      // monta cada categoria
+      Object.entries(grupos).forEach(([cat, itens]) => {
+        const sec = document.createElement('div');
+        sec.className = 'categoria';
+        sec.innerHTML = `<h2>${cat}</h2>`;
+        itens.forEach(i => {
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.innerHTML = `<span class="nome">${i.nome}</span><span class="preco">R$ ${i.preco}</span>`;
+          sec.appendChild(div);
+        });
+        container.appendChild(sec);
       });
     }
 
-    fetch(CSV_URL)
-      .then(r => r.text())
-      .then(text => {
-        const data = parseCSV(text);
-        const container = document.getElementById('cardapio');
-        container.innerHTML = '';  // limpa texto inicial
-
-        // agrupa por categoria
-        const grupos = {};
-        data.forEach(item => {
-          const cat = item.Categoria;
-          if (!grupos[cat]) grupos[cat] = [];
-          grupos[cat].push(item);
-        });
-
-        // monta cada seção de categoria
-        Object.entries(grupos).forEach(([cat, itens]) => {
-          const sec = document.createElement('div');
-          sec.className = 'categoria';
-          sec.innerHTML = `<h2>${cat}</h2>`;
-          itens.forEach(i => {
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.innerHTML = `
-              <span class="nome">${i.Nome}</span>
-              <span class="preco">R$ ${i.Preço}</span>
-            `;
-            sec.appendChild(div);
-          });
-          container.appendChild(sec);
-        });
-      })
-      .catch(err => {
-        document.getElementById('cardapio').innerText = 'Falha ao carregar o cardápio.';
-        console.error(err);
-      });
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: true,
+      complete: (results) => {
+        if (results.errors.length) {
+          document.getElementById('cardapio').innerText = 'Erro ao ler planilha.';
+          console.error(results.errors);
+        } else {
+          render(results.data);
+        }
+      }
+    });
   </script>
 </body>
 </html>
