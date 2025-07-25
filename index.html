@@ -14,53 +14,63 @@
 </head>
 <body>
   <h1>Balneário Rio Preto</h1>
-  <div id="cardapio"></div>
+  <div id="cardapio">Carregando cardápio…</div>
 
-  <!-- Tabletop.js -->
-  <script src="https://cdn.jsdelivr.net/npm/tabletop@1.5.1/src/tabletop.min.js"></script>
   <script>
-    // Use a URL da sua planilha publicada:
-    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vToQfgpKugc81XHL12EjkGLIBaYxnVapPlpsMxD0VD_K5Ymbk014e0hc7IuJ4raEDb6ehxVtsuZgpNd/pubhtml';
+    // URL CSV da sua planilha publicada
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vToQfgpKugc81XHL12EjkGLIBaYxnVapPlpsMxD0VD_K5Ymbk014e0hc7IuJ4raEDb6ehxVtsuZgpNd/pub?output=csv';
 
-    function showMenu(data) {
-      const container = document.getElementById('cardapio');
-      container.innerHTML = '';  // limpa antes de renderizar
-
-      // Agrupa itens por Categoria
-      const grupos = {};
-      data.forEach(item => {
-        const cat = item.Categoria.trim();
-        if (!grupos[cat]) grupos[cat] = [];
-        grupos[cat].push(item);
-      });
-
-      // Para cada categoria, monta a seção
-      Object.entries(grupos).forEach(([cat, itens]) => {
-        const sec = document.createElement('div');
-        sec.className = 'categoria';
-        sec.innerHTML = `<h2>${cat}</h2>`;
-        itens.forEach(i => {
-          const div = document.createElement('div');
-          div.className = 'item';
-          // formata preço: transforma "139,00" em "139,00"
-          let preco = i.Preço.toString().trim();
-          // garante que esteja com vírgula decimal
-          if (preco.indexOf('.') > -1) preco = preco.replace('.', ',');
-          div.innerHTML = `
-            <span class="nome">${i.Nome}</span>
-            <span class="preco">R$ ${preco}</span>
-          `;
-          sec.appendChild(div);
+    // Função simples pra parsear CSV em array de objetos
+    function parseCSV(text) {
+      const [headerLine, ...lines] = text.trim().split('\n');
+      const headers = headerLine.split(',').map(h => h.trim());
+      return lines.map(line => {
+        // suporta vírgulas dentro de aspas
+        const cols = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/);
+        const obj = {};
+        headers.forEach((h,i) => {
+          obj[h] = cols[i].replace(/^"|"$/g,'').trim();
         });
-        container.appendChild(sec);
+        return obj;
       });
     }
 
-    Tabletop.init({
-      key: SHEET_URL,
-      callback: showMenu,
-      simpleSheet: true
-    });
+    fetch(CSV_URL)
+      .then(r => r.text())
+      .then(text => {
+        const data = parseCSV(text);
+        const container = document.getElementById('cardapio');
+        container.innerHTML = '';  // limpa texto inicial
+
+        // agrupa por categoria
+        const grupos = {};
+        data.forEach(item => {
+          const cat = item.Categoria;
+          if (!grupos[cat]) grupos[cat] = [];
+          grupos[cat].push(item);
+        });
+
+        // monta cada seção de categoria
+        Object.entries(grupos).forEach(([cat, itens]) => {
+          const sec = document.createElement('div');
+          sec.className = 'categoria';
+          sec.innerHTML = `<h2>${cat}</h2>`;
+          itens.forEach(i => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.innerHTML = `
+              <span class="nome">${i.Nome}</span>
+              <span class="preco">R$ ${i.Preço}</span>
+            `;
+            sec.appendChild(div);
+          });
+          container.appendChild(sec);
+        });
+      })
+      .catch(err => {
+        document.getElementById('cardapio').innerText = 'Falha ao carregar o cardápio.';
+        console.error(err);
+      });
   </script>
 </body>
 </html>
