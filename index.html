@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Cardápio Balneário Rio Preto</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto; }
+    h1, h2 { text-align: center; }
+    .categoria { margin-top: 2rem; }
+    .item { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid #eee; }
+    .nome { font-weight: bold; }
+    .preco { }
+  </style>
+</head>
+<body>
+  <h1>Balneário Rio Preto</h1>
+  <div id="cardapio"></div>
+
+  <!-- Tabletop.js -->
+  <script src="https://cdn.jsdelivr.net/npm/tabletop@1.5.1/src/tabletop.min.js"></script>
+  <script>
+    // Use a URL da sua planilha publicada:
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vToQfgpKugc81XHL12EjkGLIBaYxnVapPlpsMxD0VD_K5Ymbk014e0hc7IuJ4raEDb6ehxVtsuZgpNd/pubhtml';
+
+    function showMenu(data) {
+      const container = document.getElementById('cardapio');
+      container.innerHTML = '';  // limpa antes de renderizar
+
+      // Agrupa itens por Categoria
+      const grupos = {};
+      data.forEach(item => {
+        const cat = item.Categoria.trim();
+        if (!grupos[cat]) grupos[cat] = [];
+        grupos[cat].push(item);
+      });
+
+      // Para cada categoria, monta a seção
+      Object.entries(grupos).forEach(([cat, itens]) => {
+        const sec = document.createElement('div');
+        sec.className = 'categoria';
+        sec.innerHTML = `<h2>${cat}</h2>`;
+        itens.forEach(i => {
+          const div = document.createElement('div');
+          div.className = 'item';
+          // formata preço: transforma "139,00" em "139,00"
+          let preco = i.Preço.toString().trim();
+          // garante que esteja com vírgula decimal
+          if (preco.indexOf('.') > -1) preco = preco.replace('.', ',');
+          div.innerHTML = `
+            <span class="nome">${i.Nome}</span>
+            <span class="preco">R$ ${preco}</span>
+          `;
+          sec.appendChild(div);
+        });
+        container.appendChild(sec);
+      });
+    }
+
+    Tabletop.init({
+      key: SHEET_URL,
+      callback: showMenu,
+      simpleSheet: true
+    });
+  </script>
+</body>
+</html>
